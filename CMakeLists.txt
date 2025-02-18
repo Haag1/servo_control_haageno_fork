@@ -3,6 +3,8 @@ project(servo_control)
 
 set(CMAKE_CXX_STANDARD 20)
 
+file(COPY "data/" DESTINATION "${CMAKE_BINARY_DIR}/data")
+
 include(FetchContent)
 
 set(THREEPP_BUILD_TESTS OFF)
@@ -14,7 +16,16 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(threepp)
 
-file(COPY data/ DESTINATION ${CMAKE_BINARY_DIR}/data)
+if (WIN32)
+    if (VCPKG_TARGET_TRIPLET)
+        set(OpenCV_DIR "${VCPKG_INSTALLED_DIR}/x64-windows/share/opencv4")
+    else ()
+        set(OpenCV_DIR "$ENV{OpenCV_DIR}")
+    endif ()
+endif()
+
+find_package(OpenCV REQUIRED)
+
 
 add_executable(servo_control main.cpp)
-target_link_libraries(servo_control PRIVATE threepp::threepp)
+target_link_libraries(servo_control PRIVATE threepp::threepp ${OpenCV_LIBRARIES})
