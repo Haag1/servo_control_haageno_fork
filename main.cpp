@@ -106,14 +106,6 @@ int main() {
     OrthographicCamera orthoCamera(-1, 1, 1, -1, 1, 10);
     orthoCamera.position.z = 1;
 
-    GLRenderTarget::Options opts;
-    opts.format = Format::RGB;
-    opts.anisotropy = 16;
-
-    constexpr unsigned int textureSize = 256;
-    GLRenderTarget renderTarget(textureSize, textureSize, opts);
-    orthoScene.add(createSprite(renderTarget.texture));
-
     cv::namedWindow("PanTilt", cv::WINDOW_NORMAL);
 
     Clock clock;
@@ -124,23 +116,15 @@ int main() {
 
         renderer.clear();
         cameraHelper->visible = false;
-        renderer.setRenderTarget(&renderTarget);
         renderer.render(scene, panTilt.getCamera());
-        renderer.setRenderTarget(nullptr);
         cameraHelper->visible = true;
+
+        auto pixels = renderer.readRGBPixels();
 
         renderer.clear();
         renderer.render(scene, camera);
 
-        // renderer.clearDepth();
-        // renderer.setViewport({0, 0}, {textureSize, textureSize});
-        // renderer.render(orthoScene, orthoCamera);
-        // renderer.setViewport({0, 0}, canvas.size());
-
-        renderer.copyTextureToImage(*renderTarget.texture);
-        auto pixels = renderTarget.texture->image().data();
-
-        cv::Mat image = cv::Mat(textureSize, textureSize, CV_8UC3, pixels.data());
+        cv::Mat image = cv::Mat(renderer.size().height(), renderer.size().width(), CV_8UC3, pixels.data());
 
         // OpenGL stores pixels bottom-to-top, OpenCV is top-to-bottom, so flip
         cv::flip(image, image, 0);
