@@ -42,6 +42,16 @@ public:
         upper->add(camera_);
     }
 
+    float getTiltAngle()
+    {
+        return getObjectByName("upper")->rotation.z;
+    }
+
+    float getPanAngle() const
+    {
+        return children.front()->rotation.y;
+    }
+
     void setTiltSpeed(float rad)
     {
         tiltSpeed_ = rad;
@@ -55,9 +65,9 @@ public:
     void update(float delta)
     {
         //tilt
-        getObjectByName("upper")->rotation.z += std::clamp(tiltSpeed_ * delta, -maxSpeed_, maxSpeed_);
+        getObjectByName("upper")->rotation.z += std::clamp(tiltSpeed_, -maxSpeed_, maxSpeed_) * delta;
         //pan
-        children.front()->rotation.y += std::clamp(panSpeed_ * delta, -maxSpeed_, maxSpeed_);
+        children.front()->rotation.y += std::clamp(panSpeed_, -maxSpeed_, maxSpeed_) * delta;
     }
 
     PerspectiveCamera& getCamera()
@@ -69,7 +79,7 @@ private:
     float panSpeed_{0};
     float tiltSpeed_{0};
 
-    float maxSpeed_{0.1};
+    float maxSpeed_{0.5};
     PerspectiveCamera camera_;
 };
 
@@ -91,7 +101,7 @@ void setBackground(Scene& scene)
 
 int main()
 {
-    Canvas canvas("Servo control");
+    Canvas canvas("Servo control", {{"resizable", false}});
     GLRenderer renderer(canvas.size());
     renderer.autoClear = false;
 
@@ -123,9 +133,10 @@ int main()
         const auto dt = clock.getDelta();
         panTilt.update(dt);
 
-        const auto sine = 45.f * std::sin(math::TWO_PI * 0.1f * clock.elapsedTime + 0);
-        panTilt.setPanSpeed(math::degToRad(sine));
-        // panTilt.setTiltSpeed(math::degToRad(sine));
+        constexpr float amplitude = 90;
+        constexpr float frequency = 0.05;
+        const auto speed = math::TWO_PI * frequency * amplitude * std::cos(math::TWO_PI * frequency * clock.elapsedTime);
+        panTilt.setPanSpeed(math::degToRad(speed));
 
         renderer.clear();
         cameraHelper->visible = false;
