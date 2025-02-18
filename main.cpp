@@ -11,15 +11,6 @@
 
 using namespace threepp;
 
-auto createSprite(const std::shared_ptr<Texture>& texture)
-{
-    auto spriteMaterial = MeshBasicMaterial::create({{"map", texture}});
-    auto sprite = Mesh::create(PlaneGeometry::create(), spriteMaterial);
-    sprite->scale.set(2, 2, 1);
-
-    return sprite;
-}
-
 class PanTiltMechanism : public Group
 {
 public:
