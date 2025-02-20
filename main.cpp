@@ -154,7 +154,7 @@ int main() {
             cameraHelper->visible = true;
 
             image = cv::Mat(virtualCameraSize.first, virtualCameraSize.second, CV_8UC3);
-            renderer.readPixels({0, 0}, virtualCameraSize, Format::RGB, image.data);
+            renderer.readPixels({0, 0}, virtualCameraSize, Format::BGR, image.data);
         }
 
         renderer.clear();
@@ -165,8 +165,6 @@ int main() {
             // OpenGL stores pixels bottom-to-top, OpenCV is top-to-bottom, so flip
             cv::flip(image, image, 0);
 
-            // Convert from RGB to BGR (since OpenCV expects BGR by default)
-            cv::cvtColor(image, image, cv::COLOR_RGB2BGR);
             cv::imshow(openCVWindowName, image);
         }
 
