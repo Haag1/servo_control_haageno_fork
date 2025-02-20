@@ -11,15 +11,13 @@
 
 using namespace threepp;
 
-class PanTiltMechanism : public Group
-{
+class PanTiltMechanism : public Group {
 public:
-    PanTiltMechanism(): camera_(60, 1, 0.01, 100)
-    {
+    explicit PanTiltMechanism(WindowSize camSize): camera_(60, camSize.aspect(), 0.01, 100) {
         camera_.position.x = 0.03;
         camera_.rotateY(math::degToRad(-90));
 
-        OBJLoader loader;
+        static OBJLoader loader;
         const auto bottom = loader.load("data/pantilt/bottom.obj");
         const auto upper = loader.load("data/pantilt/upper.obj");
         const auto servo = loader.load("data/pantilt/servo.obj");
@@ -42,36 +40,30 @@ public:
         upper->add(camera_);
     }
 
-    float getTiltAngle()
-    {
+    float getTiltAngle() {
         return getObjectByName("upper")->rotation.z;
     }
 
-    float getPanAngle() const
-    {
+    float getPanAngle() const {
         return children.front()->rotation.y;
     }
 
-    void setTiltSpeed(float rad)
-    {
+    void setTiltSpeed(float rad) {
         tiltSpeed_ = rad;
     }
 
-    void setPanSpeed(float rad)
-    {
+    void setPanSpeed(float rad) {
         panSpeed_ = rad;
     }
 
-    void update(float delta)
-    {
+    void update(float delta) {
         //tilt
         getObjectByName("upper")->rotation.z += std::clamp(tiltSpeed_, -maxSpeed_, maxSpeed_) * delta;
         //pan
         children.front()->rotation.y += std::clamp(panSpeed_, -maxSpeed_, maxSpeed_) * delta;
     }
 
-    PerspectiveCamera& getCamera()
-    {
+    PerspectiveCamera &getCamera() {
         return camera_;
     }
 
@@ -83,10 +75,16 @@ private:
     PerspectiveCamera camera_;
 };
 
-void setBackground(Scene& scene)
-{
+std::shared_ptr<Object3D> loadHuman() {
+    static OBJLoader loader;
+    const auto obj = loader.load("data/female02/female02.obj");
+    obj->scale /= 10;
+    return obj;
+}
+
+void setBackground(Scene &scene) {
     std::filesystem::path path("data/Bridge2");
-    std::array<std::filesystem::path, 6> urls{
+    std::array urls{
         // clang-format off
         path / "posx.jpg", path / "negx.jpg",
         path / "posy.jpg", path / "negy.jpg",
@@ -95,12 +93,11 @@ void setBackground(Scene& scene)
     };
 
     CubeTextureLoader cubeTextureLoader{};
-    auto reflectionCube = cubeTextureLoader.load(urls);
+    const auto reflectionCube = cubeTextureLoader.load(urls);
     scene.background = reflectionCube;
 }
 
-int main()
-{
+int main() {
     Canvas canvas("Servo control", {{"resizable", false}});
     GLRenderer renderer(canvas.size());
     renderer.autoClear = false;
@@ -114,10 +111,16 @@ int main()
     PerspectiveCamera camera(60, canvas.aspect(), 0.1, 1000.);
     camera.position.z = -5;
 
-    auto grid = GridHelper::create();
+    const auto grid = GridHelper::create();
     scene.add(grid);
 
-    PanTiltMechanism panTilt;
+    const auto human = loadHuman();
+    human->rotateY(math::degToRad(180));
+    human->position.z = 50;
+    scene.add(human);
+
+    std::pair virtualCameraSize = {640, 640};
+    PanTiltMechanism panTilt(virtualCameraSize);
     scene.add(panTilt);
 
     auto cameraHelper = CameraHelper::create(panTilt.getCamera());
@@ -125,37 +128,49 @@ int main()
 
     OrbitControls controls(camera, canvas);
 
-    cv::namedWindow("PanTilt", cv::WINDOW_NORMAL);
+    const std::string openCVWindowName = "OpenCV PanTilt";
+    cv::namedWindow(openCVWindowName, cv::WINDOW_AUTOSIZE);
 
     Clock clock;
-    canvas.animate([&]
-    {
+    long long tick{};
+    cv::Mat image;
+    canvas.animate([&] {
+        const bool renderVirtual = tick % 2 == 0;
+
         const auto dt = clock.getDelta();
         panTilt.update(dt);
 
         constexpr float amplitude = 90;
         constexpr float frequency = 0.05;
-        const auto speed = math::TWO_PI * frequency * amplitude * std::cos(math::TWO_PI * frequency * clock.elapsedTime);
+        const auto speed = math::TWO_PI * frequency * amplitude *
+                           std::cos(math::TWO_PI * frequency * clock.elapsedTime);
         panTilt.setPanSpeed(math::degToRad(speed));
 
-        renderer.clear();
-        cameraHelper->visible = false;
-        renderer.render(scene, panTilt.getCamera());
-        cameraHelper->visible = true;
+        if (renderVirtual) {
+            renderer.clear();
+            cameraHelper->visible = false;
+            renderer.setSize(virtualCameraSize);
+            renderer.render(scene, panTilt.getCamera());
+            cameraHelper->visible = true;
 
-        auto pixels = renderer.readRGBPixels();
+            image = cv::Mat(virtualCameraSize.first, virtualCameraSize.second, CV_8UC3);
+            renderer.readPixels({0, 0}, virtualCameraSize, Format::RGB, image.data);
+        }
 
         renderer.clear();
+        renderer.setSize(canvas.size());
         renderer.render(scene, camera);
 
-        cv::Mat image = cv::Mat(renderer.size().height(), renderer.size().width(), CV_8UC3, pixels.data());
+        if (renderVirtual) {
+            // OpenGL stores pixels bottom-to-top, OpenCV is top-to-bottom, so flip
+            cv::flip(image, image, 0);
 
-        // OpenGL stores pixels bottom-to-top, OpenCV is top-to-bottom, so flip
-        cv::flip(image, image, 0);
+            // Convert from RGB to BGR (since OpenCV expects BGR by default)
+            cv::cvtColor(image, image, cv::COLOR_RGB2BGR);
+            cv::imshow(openCVWindowName, image);
+        }
 
-        // Convert from RGB to BGR (since OpenCV expects BGR by default)
-        cv::cvtColor(image, image, cv::COLOR_RGB2BGR);
-        cv::imshow("PanTilt", image);
+        ++tick;
     });
 
     return 0;
