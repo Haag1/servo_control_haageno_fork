@@ -6,6 +6,7 @@
 
 #include <opencv2/opencv.hpp>
 
+
 #include <cmath>
 
 
@@ -82,6 +83,14 @@ std::shared_ptr<Object3D> loadHuman() {
     return obj;
 }
 
+std::shared_ptr<Object3D> loadObject()
+{
+    static OBJLoader loader;
+    const auto obj = loader.load("C:/Users/Hagen/Desktop/Projects/cpp/servo_control_haageno_fork/data/ball/red_ball.obj");
+    obj->scale /= 10;
+    return obj;
+}
+
 void setBackground(Scene &scene) {
     std::filesystem::path path("data/Bridge2");
     std::array urls{
@@ -114,10 +123,12 @@ int main() {
     const auto grid = GridHelper::create();
     scene.add(grid);
 
-    const auto human = loadHuman();
-    human->rotateY(math::degToRad(180));
-    human->position.z = 50;
-    scene.add(human);
+    const auto object_model = loadObject();
+
+
+    object_model->rotateY(math::degToRad(180));
+    object_model->position.z = 10;
+    scene.add(object_model);
 
     std::pair virtualCameraSize = {640, 640};
     PanTiltMechanism panTilt(virtualCameraSize);
@@ -133,6 +144,7 @@ int main() {
 
     Clock clock;
     long long tick{};
+    long double pos{};
     cv::Mat image;
     canvas.animate([&] {
         const bool renderVirtual = tick % 2 == 0;
@@ -144,7 +156,8 @@ int main() {
         constexpr float frequency = 0.05;
         const auto speed = math::TWO_PI * frequency * amplitude *
                            std::cos(math::TWO_PI * frequency * clock.elapsedTime);
-        panTilt.setPanSpeed(math::degToRad(speed));
+
+        panTilt.setPanSpeed(0);
 
         if (renderVirtual) {
             renderer.clear();
@@ -164,10 +177,18 @@ int main() {
         if (renderVirtual) {
             // OpenGL stores pixels bottom-to-top, OpenCV is top-to-bottom, so flip
             cv::flip(image, image, 0);
-
             cv::imshow(openCVWindowName, image);
         }
 
+        if(tick % 2 == 0)
+        {
+            pos += static_cast<long double>(0.01);
+            object_model->position.x = 10*static_cast<float>(std::sin(pos));
+            object_model->position.z = 10*static_cast<float>(std::cos(pos));
+            object_model->position.y = 1*static_cast<float>(std::cos(5*pos));
+
+
+        }
         ++tick;
     });
 
