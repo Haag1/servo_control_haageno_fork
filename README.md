@@ -1,6 +1,6 @@
 # Servo control
 
-Skeleton project for setting up a virtual camera in threepp and display content in OpenCV.
+Skeleton project for setting up a virtual camera in [threepp](https://github.com/markaren/threepp) and display content in OpenCV.
 
 ### OpenCV dependency
 
